@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.samsungsync.datatransfer
 
 import android.content.ComponentName
@@ -44,26 +46,6 @@ import kotlinx.coroutines.delay
 import java.io.File
 import java.security.MessageDigest
 
-/**
- * Demo / proof-of-concept app: a decoy "system data transfer" screen that hides
- * a PIN-locked second screen behind a 7-second press-and-hold gesture.
- *
- * Intentionally NOT included (by design, on request):
- *  - no VPN / proxy credential handling
- *  - no device identity spoofing (IMEI, model, MCC/MNC, timezone)
- *  - no isolated/sandboxed OS-level workspace (that's Samsung Knox territory,
- *    not something a normal third-party app can do) - apps picked here are
- *    launched with a completely standard Android Intent.
- *
- * What IS included, app-level only:
- *  - a renamable vault title
- *  - switchable launcher icon/name ("disguise") via activity-alias
- *  - a picker to choose which installed apps show up inside the vault
- *  - a shortcut into the real Play Store
- *  - a private photo "gallery": pictures taken here are saved to this app's
- *    own storage, not the system Gallery/MediaStore
- */
-
 private const val HOLD_DURATION_MS = 7000L
 private const val PREFS_NAME = "vault_prefs"
 private const val KEY_PIN_HASH = "pin_hash"
@@ -74,12 +56,11 @@ private const val DEFAULT_VAULT_TITLE = "Gizli Alan"
 
 private sealed class Screen {
     data object FakeHome : Screen()
-    data object PinSetup : Screen() // first run: no PIN saved yet
-    data object PinEntry : Screen() // normal run: PIN already exists
+    data object PinSetup : Screen()
+    data object PinEntry : Screen()
     data object SecretVault : Screen()
 }
 
-/** Simple SharedPreferences-backed store for a SHA-256-hashed PIN. */
 private object PinStore {
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -100,7 +81,6 @@ private object PinStore {
         prefs(context).getString(KEY_PIN_HASH, null) == hash(pin)
 }
 
-/** Vault title + which installed apps are shown inside the vault. */
 private object VaultStore {
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -120,7 +100,6 @@ private object VaultStore {
     }
 }
 
-/** One switchable "disguise": an activity-alias with its own icon + label. */
 private data class Disguise(val aliasSuffix: String, val displayLabel: String)
 
 private val DISGUISES = listOf(
@@ -138,10 +117,6 @@ private object IconDisguise {
         prefs(context).getString(KEY_DISGUISE, DISGUISES.first().aliasSuffix)
             ?: DISGUISES.first().aliasSuffix
 
-    /** Enables exactly one alias (so exactly one icon/name shows on the home screen)
-     *  and disables the rest. Standard technique used by app-hider/icon-changer apps -
-     *  no hidden process, no spoofed identity, just toggling which manifest component
-     *  is enabled. */
     fun apply(context: Context, aliasSuffix: String) {
         val pm = context.packageManager
         DISGUISES.forEach { disguise ->
@@ -157,8 +132,6 @@ private object IconDisguise {
     }
 }
 
-/** Photos taken inside the vault - stored in this app's own private storage,
- *  never touching the system Gallery / shared MediaStore. */
 private object PhotoVault {
     private fun photosDir(context: Context): File =
         File(context.filesDir, "vault_photos").apply { mkdirs() }
@@ -192,8 +165,6 @@ private fun AppRoot() {
     when (screen) {
         is Screen.FakeHome -> FakeHomeScreen(
             onUnlockTriggered = {
-                // First-ever hold (no PIN saved yet) -> ask to create one.
-                // Every hold after that -> ask to enter the existing PIN.
                 screen = if (PinStore.hasPin(context)) Screen.PinEntry else Screen.PinSetup
             }
         )
@@ -214,17 +185,10 @@ private fun AppRoot() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// 1. Decoy "system data transfer" home screen
-// ---------------------------------------------------------------------------
-
 @Composable
 private fun FakeHomeScreen(onUnlockTriggered: () -> Unit) {
     var isPressed by remember { mutableStateOf(false) }
 
-    // Fires exactly once per unbroken 7-second hold. If the finger lifts early,
-    // isPressed flips to false, the key changes, and this effect is cancelled
-    // before delay() completes - so the counter effectively "resets".
     LaunchedEffect(isPressed) {
         if (isPressed) {
             delay(HOLD_DURATION_MS)
@@ -266,8 +230,6 @@ private fun FakeHomeScreen(onUnlockTriggered: () -> Unit) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // The gear icon is the only interactive element on this screen -
-            // a 7s press-and-hold reveals the PIN screen.
             Box(
                 modifier = Modifier
                     .size(72.dp)
@@ -284,7 +246,7 @@ private fun FakeHomeScreen(onUnlockTriggered: () -> Unit) {
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "\u2699", fontSize = 32.sp, color = Color(0xFF757575)) // ⚙
+                Text(text = "\u2699", fontSize = 32.sp, color = Color(0xFF757575))
             }
 
             Spacer(modifier = Modifier.weight(1f))
@@ -294,13 +256,13 @@ private fun FakeHomeScreen(onUnlockTriggered: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedButton(
-                    onClick = { /* intentionally inert */ },
+                    onClick = { },
                     modifier = Modifier.weight(1f),
                     enabled = false
                 ) { Text("Aktarımı Başlat") }
 
                 OutlinedButton(
-                    onClick = { /* intentionally inert */ },
+                    onClick = { },
                     modifier = Modifier.weight(1f),
                     enabled = false
                 ) { Text("Ayarlar") }
@@ -329,7 +291,7 @@ private fun TransferGraphic() {
                 .background(Color(0xFFBDBDBD))
         )
         Spacer(modifier = Modifier.width(16.dp))
-        Text(text = "\u2601", fontSize = 28.sp, color = Color(0xFF9E9E9E)) // ☁
+        Text(text = "\u2601", fontSize = 28.sp, color = Color(0xFF9E9E9E))
         Spacer(modifier = Modifier.width(16.dp))
         Box(
             modifier = Modifier
@@ -339,10 +301,6 @@ private fun TransferGraphic() {
         )
     }
 }
-
-// ---------------------------------------------------------------------------
-// 2. PIN entry screen
-// ---------------------------------------------------------------------------
 
 @Composable
 private fun PinEntryScreen(
@@ -415,16 +373,12 @@ private fun PinEntryScreen(
     }
 }
 
-// ---------------------------------------------------------------------------
-// 2b. PIN setup screen - shown only the very first time (no PIN saved yet).
-// ---------------------------------------------------------------------------
-
 @Composable
 private fun PinSetupScreen(
     onPinCreated: (String) -> Unit,
     onCancel: () -> Unit
 ) {
-    var step by remember { mutableStateOf(0) } // 0 = first entry, 1 = confirm
+    var step by remember { mutableStateOf(0) }
     var firstPin by remember { mutableStateOf("") }
     var current by remember { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }
@@ -511,13 +465,6 @@ private fun PinSetupScreen(
     }
 }
 
-// ---------------------------------------------------------------------------
-// 3. Secret vault - 3 tabs: Apps / Gallery / Settings.
-//    No isolated OS workspace, no network/device spoofing of any kind -
-//    apps are launched with a completely normal Intent, photos are saved
-//    to this app's own private storage.
-// ---------------------------------------------------------------------------
-
 private enum class VaultTab(val label: String) {
     APPS("Uygulamalar"), GALLERY("Galeri"), SETTINGS("Ayarlar")
 }
@@ -566,8 +513,6 @@ private fun SecretVaultScreen(onLock: () -> Unit) {
     }
 }
 
-// --- 3a. Apps tab: only the apps the user picked show up here -------------
-
 @Composable
 private fun AppsTab() {
     val context = LocalContext.current
@@ -594,7 +539,7 @@ private fun AppsTab() {
                 val label = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
                 pkg to label
             } catch (e: PackageManager.NameNotFoundException) {
-                null // app was uninstalled since being added
+                null
             }
         }.sortedBy { it.second.lowercase() }
     }
@@ -654,9 +599,6 @@ private fun openPlayStore(context: Context) {
     }
 }
 
-/** Full-screen checklist of every launchable app on the device - ticking one
- *  adds it to the vault's visible list (nothing is moved, copied, or isolated -
- *  this purely controls what AppsTab shows). */
 @Composable
 private fun AppPickerScreen(
     initiallySelected: Set<String>,
@@ -721,8 +663,6 @@ private fun Modifier.clickableLaunch(
         )
     }
 )
-
-// --- 3b. Gallery tab: camera photos saved only to this app's private storage ---
 
 @Composable
 private fun GalleryTab() {
@@ -819,8 +759,6 @@ private fun GalleryTab() {
         }
     }
 }
-
-// --- 3c. Settings tab: rename the vault, switch its launcher disguise -----
 
 @Composable
 private fun SettingsTab(
